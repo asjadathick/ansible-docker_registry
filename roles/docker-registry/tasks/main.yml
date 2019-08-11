@@ -1,0 +1,97 @@
+---
+- name: Install pre reqs
+  package:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - yum-utils
+    - device-mapper-persistent-data
+    - lvm2
+    - python
+    - python-pip
+    - python-setuptools
+
+- name: Add yum repository
+  yum_repository:
+    name: docker
+    description: Docker yum repo
+    baseurl: https://download.docker.com/linux/centos/7/$basearch/stable
+    gpgkey: https://download.docker.com/linux/centos/gpg
+
+- name: Install docker
+  package:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - docker-ce
+    - docker-ce-cli
+    - containerd.io
+
+- name: Enable and start docker service
+  systemd:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Pip install required packages
+  pip:
+    name: "{{ item }}"
+  loop:
+    - "pyOpenSSL"
+    - "docker"
+
+- name: Create tls cert directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "/etc/certs"
+
+- name: Generate private key
+  openssl_privatekey:
+    path: /etc/certs/private.key
+
+- name: Generate an OpenSSL Certificate Signing Request
+  openssl_csr:
+    path: /etc/certs/csr.csr
+    privatekey_path: /etc/certs/private.key
+    common_name: "{{ ansible_default_ipv4.address }}"
+    
+- name: Create self signed TLS cert
+  openssl_certificate:
+    path: /etc/certs/cert.crt
+    privatekey_path: /etc/certs/private.key
+    csr_path: /etc/certs/csr.csr
+    provider: selfsigned
+  
+- name: Create docker registry container
+  docker_container:
+    restart_policy: always
+    name: registry
+    volumes: 
+      - "/etc/certs:/certs"
+    env:
+      REGISTRY_HTTP_ADDR: "0.0.0.0:443"
+      REGISTRY_HTTP_TLS_CERTIFICATE: "/certs/cert.crt"
+      REGISTRY_HTTP_TLS_KEY: "/certs/private.key"
+    ports:
+      - "443:443"
+    image: "registry:2"
+
+- name: Pull required docker images
+  docker_image:
+    name: "{{ item.original }}"
+    source: pull
+  with_items:
+    - "{{ images }}"
+
+- name: Tag and push to local registry
+  docker_image:
+    name: "{{ item.original }}"
+    # Will be pushed to localhost:5000/centos:7
+    repository: "localhost:443/{{ item.local }}"
+    push: yes
+    source: local
+  with_items:
+    - "{{ images }}"
