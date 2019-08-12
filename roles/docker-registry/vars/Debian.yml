@@ -1,0 +1,2 @@
+debian_docker_gpg: "https://download.docker.com/linux/debian/gpg"
+debian_docker_repo: "deb [arch=amd64] https://download.docker.com/linux/debian stretch stable"

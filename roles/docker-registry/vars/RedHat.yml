@@ -1,0 +1,2 @@
+redhat_yum_repo: "https://download.docker.com/linux/centos/7/$basearch/stable"
+redhat_gpg_key: "https://download.docker.com/linux/centos/gpg"

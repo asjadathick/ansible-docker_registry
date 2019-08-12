@@ -1,22 +1,10 @@
 ---
-- name: Install pre reqs
-  package:
-    name: "{{ item }}"
-    state: present
-  loop:
-    - yum-utils
-    - device-mapper-persistent-data
-    - lvm2
-    - python
-    - python-pip
-    - python-setuptools
 
-- name: Add yum repository
-  yum_repository:
-    name: docker
-    description: Docker yum repo
-    baseurl: https://download.docker.com/linux/centos/7/$basearch/stable
-    gpgkey: https://download.docker.com/linux/centos/gpg
+- name: Include OS-specific variables.
+  include_vars: "{{ ansible_os_family }}.yml"
+
+- name: Include playbooks
+  include_tasks: "install-{{ ansible_os_family }}.yml"
 
 - name: Install docker
   package:
